@@ -30,6 +30,7 @@ object ImageResizer {  //obtained/modified from http://stackoverflow.com/questio
 
         val height = originalImage.getHeight
         val width = originalImage.getWidth
+
 		var returnVal : Array[Byte] = new Array[Byte](10);
 		
         if (width == maxWidth && height == maxHeight){
@@ -40,19 +41,19 @@ object ImageResizer {  //obtained/modified from http://stackoverflow.com/questio
 		} else {
             var scaledWidth:Int = width
             var scaledHeight:Int = height
-            val ratio:Double = width/height
+            val ratio:Double = (maxWidth.toDouble * 100)/(width.toDouble * 100)
             if (scaledWidth > maxWidth){
                 scaledWidth = maxWidth
-                scaledHeight = (scaledWidth.doubleValue/ratio).intValue
+                scaledHeight = (ratio * height * 1000).intValue / 1000//(scaledWidth.doubleValue/ratio).intValue
             }
             if (scaledHeight > maxHeight){
                 scaledHeight = maxHeight
-                scaledWidth = (scaledHeight.doubleValue*ratio).intValue
+                scaledWidth = (ratio*width* 1000).intValue / 1000//(scaledHeight.doubleValue*ratio).intValue
             }
-            val scaledBI = new BufferedImage(scaledWidth, scaledHeight,  BufferedImage.TYPE_INT_ARGB)
+            val scaledBI = new BufferedImage(maxWidth, maxHeight,  BufferedImage.TYPE_INT_ARGB)
 			val g = scaledBI.createGraphics
 			g.setComposite(AlphaComposite.Src)
-			g.drawImage(originalImage, 0, 0, scaledWidth, scaledHeight, null);
+			g.drawImage(originalImage, 0, 0, maxWidth, maxHeight, null);
 			g.dispose
 
 
@@ -68,6 +69,7 @@ object ImageResizer {  //obtained/modified from http://stackoverflow.com/questio
     }
 }
 
+
 class MediaManager {
 	val awsKeyID : String = "your_aws_key"
 	val awsSecretKey : String = "your_aws_secret"
@@ -75,6 +77,7 @@ class MediaManager {
 	val rootURL : String = "http://cdn.yourthing.com/" //I'm assuming cloudfront usage, but yourthing.s3.amazon.com would work here too
 	val videoPath : String = "yourapp/andaplace/youdlike/videos/"
 	val thumbnailPathAndPrefix : String = "yourapp/andaplace/youdlike/images/thumbnail-"
+	val iphonePathAndPrefix : String = "yourapp/andaplace/youdlike/images/iphone-"
 	val originalPathAndPrefix : String = "yourapp/andaplace/youdlike/images/original-"
 	
 	def base64(plain: Array[Byte]) : String =
@@ -103,14 +106,39 @@ class MediaManager {
 		cdnBucket += (originalPathAndPrefix+fileName ,"hai there")
 		cdnBucket += (thumbnailPathAndPrefix+fileName ,"hai there")
 		var forResizing : ByteArrayInputStream = new ByteArrayInputStream(file)
-		
-		val thumbnail = cdnBucket(thumbnailPathAndPrefix+fileName)
-		var thumb : Array[Byte] = ImageResizer.resize(forResizing,58,58)
-		thumbnail.set(thumb,contentType)
-		
-
+		val originalImage : BufferedImage = ImageIO.read(forResizing)
+        val height = originalImage.getHeight
+        val width = originalImage.getWidth
 		
 		forResizing = new ByteArrayInputStream(file)
+		
+		val thumbnail = cdnBucket(thumbnailPathAndPrefix+fileName)
+		if(height < width){
+			var thumb : Array[Byte] = ImageResizer.resize(forResizing,(58*3/4),58)
+			thumbnail.set(thumb,contentType)
+		}else{
+			var thumb : Array[Byte] = ImageResizer.resize(forResizing,58,(58*3/4))
+			thumbnail.set(thumb,contentType)
+		}
+
+		
+		
+		
+		
+		forResizing = new ByteArrayInputStream(file)
+
+		val iphone = cdnBucket(iphonePathAndPrefix+fileName)
+		
+		if(height < width){
+			var iphonesized : Array[Byte] = ImageResizer.resize(forResizing,320,480)
+			iphone.set(iphonesized,contentType)
+		}else{
+			var iphonesized : Array[Byte] = ImageResizer.resize(forResizing,480,320)
+			iphone.set(iphonesized,contentType)
+		}
+		
+		
+		
 		
 		val original = cdnBucket(originalPathAndPrefix+fileName)
 		var orig : Array[Byte] = file
@@ -119,10 +147,12 @@ class MediaManager {
 		
 		var urls : Array[String] = new Array[String](2)
 		urls(0) = rootURL + thumbnailPathAndPrefix + fileName
-		urls(1) = rootURL + originalPathAndPrefix + fileName
+		urls(1) = rootURL + iphonePathAndPrefix + fileName
+		urls(2) = rootURL + originalPathAndPrefix + fileName
 		
 		urls
 	}
+
 
 }
 
