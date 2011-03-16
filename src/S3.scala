@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 package com.zentus.s3
+import com.zentus.Base64
 
 private[s3] object HTTP {
   def date(date: java.util.Date): String = {
@@ -90,12 +91,12 @@ class Item(
   def set(in: String, contentType: String): Unit = set(in.getBytes, contentType)
   def set(in: InputStream): Unit = set(in, "application/x-download")
   def set(in: InputStream, contentType: String): Unit =
-    set(in, contentType, acl.Private)
+    set(in, contentType, acl.Private) //@anderson #hack shouldbe Private - PublicRead works
   def set(in: InputStream, contentType: String, acl: ACL): Unit =
     set(HTTP.readAll(in), contentType, acl)
   def set(in: Array[Byte]): Unit = set(in, "application/x-download")
   def set(in: Array[Byte], contentType: String): Unit =
-    set(in, contentType, acl.Private)
+    set(in, contentType, acl.Private) //@anderson #hack  shouldbe Private - PublicRead works
 
   def set(in: Array[Byte], contentType: String, acl: ACL): Unit = {
     val md5 = HTTP.md5(in)
@@ -149,6 +150,9 @@ class Bucket(val s3: S3, val name: String) extends Iterable[Item] {
   override def elements(): Iterator[Item] =
     elements("")
 
+
+  def iterator() : Iterator[Item] = elements()
+
   def elements(prefix: String): Iterator[Item] = {
     def genItem(contents: xml.Node): Item = {
       new Item(
@@ -201,6 +205,7 @@ class S3(awsKeyId: String, awsSecretKey: String) extends Iterable[Bucket] {
   import javax.crypto.Mac
   import javax.crypto.spec.SecretKeySpec
   import xml._
+
 
   // RFC2104
   private def calcHMAC(data: String): String = {
@@ -270,6 +275,8 @@ class S3(awsKeyId: String, awsSecretKey: String) extends Iterable[Bucket] {
   }
 
   def apply(name: String) = new Bucket(this, name)
+
+  def iterator() : Iterator[Bucket] = elements()
 
   override def elements(): Iterator[Bucket] = {
     val date = HTTP.now
